@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Control de Cortesías</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: barra superior con rol y evento, pestañas por rol, contenido en una columna ancha de tarjetas funcionales. */
+:root {
+  --bg: #f3f5f7;
+  --surface: #ffffff;
+  --sunken: #e9edf1;
+  --ink: #16242e;
+  --muted: #5b6b77;
+  --line: #d3dbe2;
+  --brand: #1f3b4d;
+  --brand-ink: #ffffff;
+  --accent: #c7781c;
+  --accent-soft: #fbeedd;
+  --good: #1f7a4d; --good-soft: #def2e7;
+  --warn: #9a6200; --warn-soft: #fbefd3;
+  --crit: #b3261e; --crit-soft: #fbe2df;
+  --focus: #2f6fa3;
+  --f-ui: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --f-code: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10171d; --surface: #172129; --sunken: #1d2a34; --ink: #e6edf2; --muted: #9aabb8; --line: #2c3b46;
+  --brand: #2c5470; --brand-ink: #f2f6f9; --accent: #e09a45; --accent-soft: #3a2a17;
+  --good: #6fcf9d; --good-soft: #17352a; --warn: #f0c060; --warn-soft: #3a2f14; --crit: #ff8a80; --crit-soft: #3d1c1a;
+  --focus: #7fb4e0; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #10171d; --surface: #172129; --sunken: #1d2a34; --ink: #e6edf2; --muted: #9aabb8; --line: #2c3b46;
+  --brand: #2c5470; --brand-ink: #f2f6f9; --accent: #e09a45; --accent-soft: #3a2a17;
+  --good: #6fcf9d; --good-soft: #17352a; --warn: #f0c060; --warn-soft: #3a2f14; --crit: #ff8a80; --crit-soft: #3d1c1a;
+  --focus: #7fb4e0; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html { color-scheme: light; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 0 48px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h2 { font-size: 18px; font-weight: 600; }
+h3 { font-size: 15px; font-weight: 600; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--f-code); font-size: 12.5px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* Barra superior */
+.top { background: var(--brand); color: var(--brand-ink); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding-block: 12px; }
+.brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
+.stub { width: 30px; height: 20px; border: 1.5px solid currentColor; border-radius: 4px; position: relative; flex: none; }
+.stub::after { content: ""; position: absolute; top: 2px; bottom: 2px; left: 9px; border-left: 1.5px dashed currentColor; }
+.brand h1 { font-size: 16px; font-weight: 700; letter-spacing: .01em; }
+.brand small { display: block; font-size: 11.5px; opacity: .78; font-weight: 400; }
+.roles { display: flex; background: rgba(255,255,255,.12); border-radius: 999px; padding: 3px; gap: 2px; }
+.roles button { border: 0; background: transparent; color: inherit; font: 600 13px var(--f-ui); padding: 6px 14px; border-radius: 999px; cursor: pointer; }
+.roles button[aria-pressed="true"] { background: var(--brand-ink); color: var(--brand); }
+.who { display: flex; gap: 8px; align-items: center; }
+.who input { width: 150px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); color: inherit; border-radius: 6px; padding: 6px 8px; font: 13px var(--f-ui); }
+.who input::placeholder { color: inherit; opacity: .65; }
+
+/* Barra de evento y pestañas */
+.bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; justify-content: space-between; padding-block: 18px 6px; }
+.evsel { display: grid; gap: 4px; min-width: 0; }
+.evsel label { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.evsel select { min-width: 0; max-width: 100%; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line); margin-top: 8px; }
+.tabs button { border: 0; background: none; font: 600 14px var(--f-ui); color: var(--muted); padding: 10px 12px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tabs .badge { margin-left: 6px; }
+
+/* Bloques */
+main { display: grid; gap: 16px; padding-top: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.card-h { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; }
+.grid2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+.note { font-size: 12.5px; color: var(--muted); }
+.banner { border-radius: var(--r); padding: 10px 14px; font-size: 13px; background: var(--accent-soft); color: var(--ink); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+
+/* Formularios */
+form.f { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); align-items: end; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+.field label { font-size: 12px; font-weight: 600; color: var(--muted); }
+input, select, textarea { font: 14px var(--f-ui); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+textarea { font-family: var(--f-code); font-size: 12.5px; min-height: 110px; resize: vertical; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn { border: 1px solid var(--brand); background: var(--brand); color: var(--brand-ink); font: 600 13px var(--f-ui); padding: 8px 14px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
+.btn.ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn.good { background: var(--good); border-color: var(--good); color: #fff; }
+.btn.crit { background: transparent; border-color: var(--crit); color: var(--crit); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.err { color: var(--crit); font-size: 13px; font-weight: 500; }
+.ok { color: var(--good); font-size: 13px; font-weight: 500; }
+
+/* Tablas */
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th { text-align: left; font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
+.empty { padding: 18px; text-align: center; color: var(--muted); background: var(--sunken); border-radius: 6px; }
+
+/* Estados */
+.pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.p-pend { background: var(--warn-soft); color: var(--warn); }
+.p-aut { background: var(--accent-soft); color: var(--accent); }
+.p-env { background: var(--good-soft); color: var(--good); }
+.p-rech { background: var(--sunken); color: var(--muted); }
+.badge { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: var(--crit); color: #fff; }
+.badge.w { background: var(--warn); }
+
+/* Indicadores */
+.kpis { display: grid; gap: 1px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); background: var(--line); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.kpi { background: var(--surface); padding: 12px 14px; display: grid; gap: 2px; }
+.kpi span { font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.kpi b { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi.crit b { color: var(--crit); }
+.meter { height: 10px; border-radius: 999px; background: var(--sunken); overflow: hidden; display: flex; }
+.meter i { display: block; height: 100%; }
+
+/* Alertas */
+.alerts { display: grid; gap: 8px; }
+.alert { display: grid; grid-template-columns: 4px 1fr; gap: 12px; padding: 10px 12px 10px 0; border-radius: 6px; background: var(--sunken); }
+.alert::before { content: ""; border-radius: 4px 0 0 4px; }
+.alert.crit { background: var(--crit-soft); } .alert.crit::before { background: var(--crit); }
+.alert.warn { background: var(--warn-soft); } .alert.warn::before { background: var(--warn); }
+.alert.good { background: var(--good-soft); } .alert.good::before { background: var(--good); }
+.alert h4 { margin: 0 0 2px; font-size: 14px; }
+.alert p { font-size: 13px; }
+
+/* Conciliación */
+.recon { display: grid; gap: 0; max-width: 520px; }
+.recon div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-variant-numeric: tabular-nums; }
+.recon div:last-child { border-bottom: 0; font-weight: 700; }
+.recon div.crit { color: var(--crit); }
+.recon div.good { color: var(--good); }
+
+/* Aviso de mail */
+.mail { border: 1px dashed var(--line); border-radius: 6px; padding: 12px 14px; background: var(--sunken); white-space: pre-wrap; font-size: 13px; }
+.codes { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.codes span { font-family: var(--f-code); font-size: 12px; padding: 1px 6px; border-radius: 4px; background: var(--sunken); }
+.codes span.used { background: var(--good-soft); color: var(--good); }
+details summary { cursor: pointer; color: var(--focus); font-size: 13px; font-weight: 500; }
+
+@media (max-width: 560px) {
+  .top { position: static; }
+  .who input { width: 120px; }
+  .roles button { padding: 6px 10px; }
+}
+@media (prefers-reduced-motion: no-preference) { .tabs button, .roles button { transition: background .15s, color .15s, border-color .15s; } }
+</style>
+</head>
+<body>
+
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="stub" aria-hidden="true"></span><h1>Control de Cortesías<small>Demo del sistema</small></h1></div>
+    <div class="roles" role="group" aria-label="Ver como">
+      <button id="r-gestor" data-rol="gestor">Gestor</button>
+      <button id="r-autorizante" data-rol="autorizante">Autorizante</button>
+      <button id="r-direccion" data-rol="direccion">Dirección</button>
+    </div>
+    <div class="who"><input id="nombre" placeholder="Tu nombre (opcional)" aria-label="Tu nombre"></div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="bar">
+    <div class="evsel"><label for="evento">Evento</label><select id="evento"></select></div>
+    <div class="row-actions" style="align-items:center"><p class="note" id="estado-datos">Cargando…</p><button class="btn ghost" id="reiniciar" type="button">Reiniciar demo</button></div>
+  </div>
+  <nav class="tabs" id="tabs" role="tablist"></nav>
+  <main id="main"><div class="empty">Cargando los datos de la demo…</div></main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // ---------------------------------------------------------------- estado
+  const S = { eventos: [], entregas: [], saldos: [], historial: [], molinete: {} };
+  const ui = { rol: "gestor", ev: "", tab: "", nombre: "", aviso: null, codigosDe: null, busqueda: "", flash: null };
+
+  const store = {
+    get(k) { try { return localStorage.getItem("cc." + k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem("cc." + k, v); } catch (e) {} },
+  };
+  ui.rol = store.get("rol") || "gestor";
+  ui.ev = store.get("ev") || "";
+  ui.nombre = store.get("nombre") || "";
+
+  const TABS = {
+    gestor: [["entregas", "Entregas"]],
+    autorizante: [["autorizar", "Autorizar"], ["saldo", "Saldo del cupo"], ["molinete", "Molinete"], ["eventos", "Eventos"]],
+    direccion: [["tablero", "Tablero"], ["buscar", "Buscar código"], ["historial", "Historial"]],
+  };
+  const ROL_NOMBRE = { gestor: "Gestor", autorizante: "Autorizante", direccion: "Dirección" };
+  const ESTADO = {
+    pendiente: ["Pendiente de autorización", "p-pend"],
+    autorizada: ["Autorizada, sin códigos", "p-aut"],
+    enviada: ["Enviada", "p-env"],
+    rechazada: ["Rechazada", "p-rech"],
+  };
+  const TIPO_SALDO = { inicial: "Saldo inicial", control: "Control", corte: "Corte antes del show", cierre: "Cierre después del show" };
+
+  // ---------------------------------------------------------------- utilidades
+  const $ = (s) => document.querySelector(s);
+  const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const n = (v) => Number(v) || 0;
+  const fmtN = (v) => n(v).toLocaleString("es-AR");
+  function fmtF(iso, conHora) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (isNaN(d)) return esc(iso);
+    const f = d.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return conHora ? f + " " + d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : f;
+  }
+  const quien = () => ROL_NOMBRE[ui.rol] + (ui.nombre ? " (" + ui.nombre + ")" : "");
+  const parseCodigos = (txt) => {
+    const out = [];
+    String(txt || "").split(/\r?\n/).forEach((line) => {
+      const first = line.split(/[;,\t]/)[0];
+      first.split(/\s+/).forEach((tok) => {
+        const t = tok.replace(/^["']|["']$/g, "").trim();
+        if (/^[A-Za-z0-9-]{6,}$/.test(t) && /\d/.test(t)) out.push(t);
+      });
+    });
+    return out;
+  };
+  const evento = (id) => S.eventos.find((e) => e.id === id);
+  const sortEventos = () => [...S.eventos].sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+
+  // ---------------------------------------------------------------- datos
+  // Versión independiente: los datos se guardan en el navegador de cada visitante.
+  const SEED = {"eventos": [{"id": "ev-aurora", "nombre": "Gira Aurora – Estadio Norte (ejemplo)", "fecha": "2026-11-14", "ticketera": "Ticketek", "venue": "Estadio Norte", "cupo": 200, "creado": "2026-10-05T10:00:00-03:00"}, {"id": "ev-sinfonica", "nombre": "Noche Sinfónica – Teatro Central (ejemplo)", "fecha": "2026-09-27", "ticketera": "Ticket 1", "venue": "Teatro Central", "cupo": 80, "creado": "2026-09-01T10:00:00-03:00"}], "entregas": [{"id": "en-a1", "eventoId": "ev-aurora", "receptor": "Dueño – invitados", "mail": "dueno@ejemplo.com", "cantidad": 10, "sector": "Platea preferencial", "motivo": "Invitados de Dirección", "estado": "enviada", "creado": "2026-10-06T11:00:00-03:00", "creadoPor": "Gestor", "codigos": ["4819834441", "4874766143", "4855458228", "4842011950", "4814366979", "4811995217", "4883479374", "4884111441", "4802618916", "4872867477"], "autorizadoPor": "Autorizante", "autorizado": "2026-10-06T12:10:00-03:00", "comentario": "", "enviadoPor": "Gestor", "fechaEnvio": "2026-10-06T15:30:00-03:00"}, {"id": "en-a2", "eventoId": "ev-aurora", "receptor": "Sponsor A – Marketing", "mail": "marketing@sponsora.ejemplo.com", "cantidad": 15, "sector": "Campo", "motivo": "Contrato de sponsoreo", "estado": "enviada", "creado": "2026-10-07T10:00:00-03:00", "creadoPor": "Gestor", "codigos": ["4866914763", "4879719274", "4897066059", "4857454830", "4887416103", "4840098485", "4841023034", "4884233954", "4850892835", "4876368857", "4890367514", "4812302347", "4872860145", "4886627312", "4822035980"], "autorizadoPor": "Autorizante", "autorizado": "2026-10-07T11:20:00-03:00", "comentario": "", "enviadoPor": "Gestor", "fechaEnvio": "2026-10-07T16:00:00-03:00"}, {"id": "en-a3", "eventoId": "ev-aurora", "receptor": "Medio 1 – Prensa", "mail": "prensa@medio1.ejemplo.com", "cantidad": 5, "sector": "Platea", "motivo": "Cobertura", "estado": "enviada", "creado": "2026-10-08T09:30:00-03:00", "creadoPor": "Gestor", "codigos": ["4896747515", "4808116102", "4810402692", "4807778041", "4843498083"], "autorizadoPor": "Autorizante", "autorizado": "2026-10-08T10:05:00-03:00", "comentario": "", "enviadoPor": "Gestor", "fechaEnvio": "2026-10-08T12:40:00-03:00"}, {"id": "en-a4", "eventoId": "ev-aurora", "receptor": "Cliente corporativo 1", "mail": "eventos@cliente1.ejemplo.com", "cantidad": 8, "sector": "Platea preferencial", "motivo": "Cliente", "estado": "pendiente", "creado": "2026-10-13T09:15:00-03:00", "creadoPor": "Gestor", "codigos": []}, {"id": "en-b1", "eventoId": "ev-sinfonica", "receptor": "Dueño – invitados", "mail": "dueno@ejemplo.com", "cantidad": 20, "sector": "Platea", "motivo": "Invitados de Dirección", "estado": "enviada", "creado": "2026-09-10T10:00:00-03:00", "creadoPor": "Gestor", "codigos": ["4805116674", "4855042494", "4838970175", "4896964630", "4867368133", "4834131780", "4803946731", "4812573619", "4857355784", "4802972474", "4880208047", "4854522038", "4812934697", "4895253855", "4886100442", "4843318364", "4897161791", "4883098388", "4896381257", "4811189331"], "autorizadoPor": "Autorizante", "autorizado": "2026-09-10T11:00:00-03:00", "comentario": "", "enviadoPor": "Gestor", "fechaEnvio": "2026-09-10T15:00:00-03:00"}, {"id": "en-b2", "eventoId": "ev-sinfonica", "receptor": "Sponsor B – Marketing", "mail": "marketing@sponsorb.ejemplo.com", "cantidad": 25, "sector": "Platea", "motivo": "Contrato de sponsoreo", "estado": "enviada", "creado": "2026-09-12T10:00:00-03:00", "creadoPor": "Gestor", "codigos": ["4827875681", "4851854277", "4815087500", "4886338158", "4824602165", "4873862886", "4843432143", "4880323641", "4833034048", "4833523042", "4808684773", "4807273438", "4894176078", "4856548581", "4805132374", "4877660693", "4814189938", "4876755697", "4846452024", "4817703700", "4826293260", "4834205518", "4830118038", "4862055996", "4896908700"], "autorizadoPor": "Autorizante", "autorizado": "2026-09-12T11:00:00-03:00", "comentario": "", "enviadoPor": "Gestor", "fechaEnvio": "2026-09-12T16:00:00-03:00"}, {"id": "en-b3", "eventoId": "ev-sinfonica", "receptor": "Medio 2 – Prensa", "mail": "prensa@medio2.ejemplo.com", "cantidad": 10, "sector": "Pullman", "motivo": "Cobertura", "estado": "enviada", "creado": "2026-09-15T10:00:00-03:00", "creadoPor": "Gestor", "codigos": ["4801639902", "4814500837", "4852344763", "4873829734", "4872016572", "4829865468", "4850050883", "4808005182", "4859766925", "4863128663"], "autorizadoPor": "Autorizante", "autorizado": "2026-09-15T10:30:00-03:00", "comentario": "", "enviadoPor": "Gestor", "fechaEnvio": "2026-09-15T12:00:00-03:00"}], "saldos": [{"id": "sa-a1", "eventoId": "ev-aurora", "saldo": 200, "tipo": "inicial", "fecha": "2026-10-05T10:00:00-03:00", "cargadoPor": "Autorizante"}, {"id": "sa-a2", "eventoId": "ev-aurora", "saldo": 160, "tipo": "control", "fecha": "2026-10-13T09:00:00-03:00", "cargadoPor": "Autorizante"}, {"id": "sa-b1", "eventoId": "ev-sinfonica", "saldo": 80, "tipo": "inicial", "fecha": "2026-09-01T10:00:00-03:00", "cargadoPor": "Autorizante"}, {"id": "sa-b2", "eventoId": "ev-sinfonica", "saldo": 25, "tipo": "corte", "fecha": "2026-09-25T18:00:00-03:00", "cargadoPor": "Autorizante"}, {"id": "sa-b3", "eventoId": "ev-sinfonica", "saldo": 25, "tipo": "cierre", "fecha": "2026-09-29T10:00:00-03:00", "cargadoPor": "Autorizante"}], "historial": [{"id": "h-ej-08", "fecha": "2026-10-13T09:15:00-03:00", "quien": "Gestor", "rol": "gestor", "accion": "Pidió 8 entradas para Cliente corporativo 1 (eventos@cliente1.ejemplo.com)", "eventoId": "ev-aurora"}, {"id": "h-ej-07", "fecha": "2026-10-13T09:00:00-03:00", "quien": "Autorizante", "rol": "autorizante", "accion": "Registró saldo de la ticketera: 160 (Control)", "eventoId": "ev-aurora"}, {"id": "h-ej-06", "fecha": "2026-10-08T10:05:00-03:00", "quien": "Autorizante", "rol": "autorizante", "accion": "Autorizó 5 entradas para Medio 1 – Prensa", "eventoId": "ev-aurora"}, {"id": "h-ej-05", "fecha": "2026-10-07T11:20:00-03:00", "quien": "Autorizante", "rol": "autorizante", "accion": "Autorizó 15 entradas para Sponsor A – Marketing", "eventoId": "ev-aurora"}, {"id": "h-ej-04", "fecha": "2026-10-06T12:10:00-03:00", "quien": "Autorizante", "rol": "autorizante", "accion": "Autorizó 10 entradas para Dueño – invitados", "eventoId": "ev-aurora"}, {"id": "h-ej-03", "fecha": "2026-10-05T10:00:00-03:00", "quien": "Autorizante", "rol": "autorizante", "accion": "Creó el evento Gira Aurora – Estadio Norte (ejemplo) con un cupo de 200", "eventoId": "ev-aurora"}, {"id": "h-ej-02", "fecha": "2026-09-29T10:15:00-03:00", "quien": "Autorizante", "rol": "autorizante", "accion": "Cargó el reporte del molinete (41 lecturas)", "eventoId": "ev-sinfonica"}, {"id": "h-ej-01", "fecha": "2026-09-10T15:00:00-03:00", "quien": "Gestor", "rol": "gestor", "accion": "Cargó 20 códigos y envió las entradas a Dueño – invitados (dueno@ejemplo.com)", "eventoId": "ev-sinfonica"}, {"id": "h-ej-00", "fecha": "2026-09-01T10:00:00-03:00", "quien": "Autorizante", "rol": "autorizante", "accion": "Creó el evento Noche Sinfónica – Teatro Central (ejemplo) con un cupo de 80", "eventoId": "ev-sinfonica"}], "molinete": {"ev-sinfonica": {"id": "ev-sinfonica", "eventoId": "ev-sinfonica", "codigos": ["4805116674", "4855042494", "4838970175", "4896964630", "4867368133", "4834131780", "4803946731", "4812573619", "4857355784", "4802972474", "4880208047", "4854522038", "4812934697", "4895253855", "4827875681", "4851854277", "4815087500", "4886338158", "4824602165", "4873862886", "4843432143", "4880323641", "4833034048", "4833523042", "4808684773", "4807273438", "4894176078", "4856548581", "4805132374", "4877660693", "4814189938", "4876755697", "4801639902", "4814500837", "4852344763", "4873829734", "4872016572", "4829865468", "4850050883", "4808005182", "4859766925"], "lecturas": 41, "repetidos": [], "fecha": "2026-09-29T10:15:00-03:00", "cargadoPor": "Autorizante"}}};
+  const KEY = "cc.datos.v1";
+  let persistente = true;
+  function cargar() {
+    let raw = null;
+    try { raw = localStorage.getItem(KEY); } catch (e) { persistente = false; }
+    const base = raw ? JSON.parse(raw) : JSON.parse(JSON.stringify(SEED));
+    Object.assign(S, base);
+  }
+  function guardar() {
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { persistente = false; }
+  }
+  const nuevoId = () => "id" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  async function crear(col, data) {
+    const row = { ...data, id: data.id || nuevoId() };
+    if (col === "historial") S.historial.unshift(row); else S[col].push(row);
+    guardar(); render();
+    return row.id;
+  }
+  async function actualizar(col, id, patch) {
+    const it = S[col].find((x) => x.id === id);
+    if (it) Object.assign(it, patch);
+    guardar(); render();
+  }
+  async function guardarMolinete(evId, data) { S.molinete[evId] = data; guardar(); render(); }
+  async function registrar(accion, evId) {
+    await crear("historial", { fecha: new Date().toISOString(), quien: quien(), rol: ui.rol, accion, eventoId: evId || "" });
+  }
+  async function intentar(fn, okMsg) {
+    try { await fn(); } catch (e) { ui.flash = { err: "No se pudo guardar el cambio." }; }
+    render();
+  }
+
+  // ---------------------------------------------------------------- cálculos
+  function calc(evId) {
+    const ev = evento(evId);
+    if (!ev) return null;
+    const ent = S.entregas.filter((x) => x.eventoId === evId);
+    const sum = (a) => a.reduce((t, x) => t + n(x.cantidad), 0);
+    const pend = ent.filter((x) => x.estado === "pendiente");
+    const aut = ent.filter((x) => x.estado === "autorizada" || x.estado === "enviada");
+    const env = ent.filter((x) => x.estado === "enviada");
+    const sal = S.saldos.filter((s) => s.eventoId === evId).sort((a, b) => (a.fecha < b.fecha ? -1 : 1));
+    const ultimo = sal[sal.length - 1] || null;
+    const cupo = n(ev.cupo);
+    const autorizadas = sum(aut), enviadas = sum(env), pendientes = sum(pend);
+    const retiradas = ultimo ? cupo - n(ultimo.saldo) : null;
+    const alerts = [];
+
+    if (autorizadas > cupo) alerts.push({ nivel: "crit", t: `Lo autorizado supera el cupo por ${fmtN(autorizadas - cupo)}`, d: `Hay ${fmtN(autorizadas)} entradas autorizadas y el cupo de la ticketera es ${fmtN(cupo)}.`, a: "Revisar las autorizaciones del evento." });
+    if (retiradas == null) {
+      alerts.push({ nivel: "warn", t: "Falta cargar el saldo de la ticketera", d: "Sin el saldo no se puede controlar cuántas entradas se retiraron.", a: "El Autorizante lo carga en «Saldo del cupo»." });
+    } else {
+      const sinAut = retiradas - autorizadas;
+      if (sinAut > 0) alerts.push({ nivel: "crit", t: `${fmtN(sinAut)} entradas retiradas sin autorización`, d: `La ticketera muestra ${fmtN(retiradas)} retiradas (${fmtN(cupo)} − ${fmtN(ultimo.saldo)}) y en el sistema hay ${fmtN(autorizadas)} autorizadas.`, a: "Revisar cada envío con el Gestor e informar a Dirección." });
+      const sinCod = Math.min(retiradas, autorizadas) - enviadas;
+      if (sinCod > 0) alerts.push({ nivel: "warn", t: `${fmtN(sinCod)} entradas retiradas sin códigos cargados`, d: "Corresponden a entregas autorizadas a las que todavía no se les cargaron los códigos.", a: "El Gestor carga los códigos en «Entregas»." });
+    }
+    const corte = [...sal].reverse().find((s) => s.tipo === "corte");
+    if (corte) {
+      const posteriores = sal.filter((s) => s.fecha > corte.fecha);
+      if (posteriores.length) {
+        const minimo = Math.min(...posteriores.map((s) => n(s.saldo)));
+        const enviadasDespues = sum(env.filter((x) => x.fechaEnvio && x.fechaEnvio > corte.fecha));
+        const sinExplicar = n(corte.saldo) - minimo - enviadasDespues;
+        if (sinExplicar > 0) alerts.push({ nivel: "crit", t: `El saldo bajó ${fmtN(sinExplicar)} después del corte`, d: `En el corte del ${fmtF(corte.fecha)} quedaban ${fmtN(corte.saldo)}; después bajó a ${fmtN(minimo)} sin entregas registradas que lo expliquen.`, a: "Informar a Dirección el mismo día." });
+      }
+    }
+
+    const asignado = new Map();
+    env.forEach((x) => (x.codigos || []).forEach((c) => asignado.set(c, x)));
+    const mol = S.molinete[evId] || null;
+    const usadosPor = new Map();
+    let sinAsignar = [];
+    if (mol) {
+      const set = new Set(mol.codigos || []);
+      set.forEach((c) => {
+        const x = asignado.get(c);
+        if (x) usadosPor.set(x.id, (usadosPor.get(x.id) || 0) + 1);
+        else sinAsignar.push(c);
+      });
+      if (sinAsignar.length) alerts.push({ nivel: "crit", t: `${fmtN(sinAsignar.length)} entradas entraron sin estar asignadas`, d: "Pasaron por el molinete códigos que no figuran en ninguna entrega.", a: "Informar a Dirección con los códigos." });
+      if ((mol.repetidos || []).length) alerts.push({ nivel: "warn", t: `${fmtN(mol.repetidos.length)} códigos con lecturas repetidas`, d: "El mismo código pasó más de una vez por el molinete.", a: "Revisar con la ticketera si fue un reingreso o una copia." });
+    }
+    const usadas = mol ? [...usadosPor.values()].reduce((a, b) => a + b, 0) : null;
+    return { ev, ent, pend, aut, env, sal, ultimo, cupo, autorizadas, enviadas, pendientes, retiradas, alerts, mol, usadosPor, usadas, sinAsignar, corte };
+  }
+
+  // ---------------------------------------------------------------- render
+  function render() {
+    document.querySelectorAll(".roles button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.rol === ui.rol)));
+    const evs = sortEventos();
+    if (!evento(ui.ev) && evs.length) ui.ev = evs[0].id;
+    const sel = $("#evento");
+    const opts = evs.map((e) => `<option value="${esc(e.id)}"${e.id === ui.ev ? " selected" : ""}>${esc(e.nombre)} · ${fmtF(e.fecha)}</option>`).join("");
+    if (sel.innerHTML !== opts) sel.innerHTML = opts || '<option value="">Todavía no hay eventos</option>';
+    sel.value = ui.ev;
+
+    const tabs = TABS[ui.rol];
+    if (!tabs.some((t) => t[0] === ui.tab)) ui.tab = tabs[0][0];
+    const c = calc(ui.ev);
+    const pendCount = S.entregas.filter((x) => x.estado === "pendiente").length;
+    const critCount = c ? c.alerts.filter((a) => a.nivel === "crit").length : 0;
+    $("#tabs").innerHTML = tabs.map(([k, label]) => {
+      let badge = "";
+      if (k === "autorizar" && pendCount) badge = `<span class="badge w">${pendCount}</span>`;
+      if ((k === "tablero" || k === "saldo") && critCount) badge = `<span class="badge">${critCount}</span>`;
+      return `<button role="tab" id="tab-${k}" data-tab="${k}" aria-selected="${k === ui.tab}">${label}${badge}</button>`;
+    }).join("");
+
+    const views = { entregas: vEntregas, autorizar: vAutorizar, saldo: vSaldo, molinete: vMolinete, eventos: vEventos, tablero: vTablero, buscar: vBuscar, historial: vHistorial };
+    let html = "";
+    if (ui.flash) html += ui.flash.err ? `<div class="banner err" role="alert">${esc(ui.flash.err)}</div>` : "";
+    html += views[ui.tab](c);
+    const main = $("#main");
+    const active = document.activeElement && document.activeElement.id;
+    main.innerHTML = html;
+    if (active && document.getElementById(active) && main.contains(document.getElementById(active))) document.getElementById(active).focus();
+    ui.flash = null;
+  }
+
+  const sinEvento = () => `<div class="card"><div class="empty">Todavía no hay eventos. El Autorizante los crea en la pestaña «Eventos».</div></div>`;
+  const pill = (estado) => { const [t, cl] = ESTADO[estado] || [estado, "p-rech"]; return `<span class="pill ${cl}">${t}</span>`; };
+
+  function resumenCupo(c) {
+    const pct = (v) => (c.cupo ? Math.max(0, Math.min(100, (v / c.cupo) * 100)) : 0);
+    const disponible = c.cupo - c.autorizadas - c.pendientes;
+    return `<div class="kpis">
+      <div class="kpi"><span>Cupo</span><b>${fmtN(c.cupo)}</b></div>
+      <div class="kpi"><span>Enviadas</span><b>${fmtN(c.enviadas)}</b></div>
+      <div class="kpi"><span>Autorizadas</span><b>${fmtN(c.autorizadas)}</b></div>
+      <div class="kpi"><span>Pendientes</span><b>${fmtN(c.pendientes)}</b></div>
+      <div class="kpi${disponible < 0 ? " crit" : ""}"><span>Sin asignar</span><b>${fmtN(disponible)}</b></div>
+    </div>
+    <div class="meter" role="img" aria-label="Uso del cupo"><i style="width:${pct(c.enviadas)}%;background:var(--good)"></i><i style="width:${pct(c.autorizadas - c.enviadas)}%;background:var(--accent)"></i><i style="width:${pct(c.pendientes)}%;background:var(--warn);opacity:.55"></i></div>
+    <p class="note">Verde: enviadas · Naranja: autorizadas sin códigos · Amarillo: pendientes de autorización.</p>`;
+  }
+
+  function alertas(c, vacio) {
+    if (!c.alerts.length) return `<div class="alert good"><div><h4>Sin alertas</h4><p>Lo retirado de la ticketera coincide con lo autorizado.</p></div></div>`;
+    const ord = [...c.alerts].sort((a, b) => (a.nivel === b.nivel ? 0 : a.nivel === "crit" ? -1 : 1));
+    return `<div class="alerts">${ord.map((a) => `<div class="alert ${a.nivel}"><div><h4>${esc(a.t)}</h4><p>${esc(a.d)}</p><p class="muted">Qué hacer: ${esc(a.a)}</p></div></div>`).join("")}</div>`;
+  }
+
+  // ---- Gestor
+  function vEntregas(c) {
+    if (!c) return sinEvento();
+    const filas = [...c.ent].sort((a, b) => (a.creado < b.creado ? 1 : -1));
+    let cod = "";
+    const objetivo = ui.codigosDe && c.ent.find((x) => x.id === ui.codigosDe && x.estado === "autorizada");
+    if (objetivo) {
+      cod = `<div class="card" id="carga-codigos"><div class="card-h"><h2>Cargar códigos · ${esc(objetivo.receptor)}</h2><span class="muted">${fmtN(objetivo.cantidad)} entradas autorizadas</span></div>
+        <p class="note">Pegá los códigos de las entradas que retiraste de la ticketera para este receptor, uno por línea, o subí el archivo. Tienen que ser exactamente ${fmtN(objetivo.cantidad)}.</p>
+        <div class="field"><label for="codigos-txt">Códigos</label><textarea id="codigos-txt" placeholder="4823104755&#10;4823104756&#10;…"></textarea></div>
+        <div class="row-actions"><label class="btn ghost" for="codigos-file">Subir archivo (CSV o TXT)</label><input type="file" id="codigos-file" accept=".csv,.txt,text/plain,text/csv" hidden>
+        <button class="btn" id="codigos-guardar" data-id="${esc(objetivo.id)}">Guardar y marcar como enviada</button>
+        <button class="btn ghost" id="codigos-cancelar">Cancelar</button></div>
+        <p id="codigos-msg" class="err" aria-live="polite"></p></div>`;
+    }
+    let aviso = "";
+    if (ui.aviso) {
+      aviso = `<div class="card"><div class="card-h"><h2>Aviso al receptor</h2><span class="muted">Simulado: en el sistema real se envía solo</span></div>
+        <div class="mail" id="aviso-txt">${esc(ui.aviso)}</div>
+        <div class="row-actions"><button class="btn ghost" id="aviso-copiar">Copiar texto</button><button class="btn ghost" id="aviso-cerrar">Cerrar</button></div></div>`;
+    }
+    return `${aviso}${cod}
+    <div class="grid2">
+      <div class="card"><h2>Nueva entrega</h2>
+        <form class="f" id="f-entrega">
+          <div class="field wide"><label for="e-receptor">Receptor</label><input id="e-receptor" required placeholder="Ej.: Dueño – invitados, Sponsor A" list="receptores"></div>
+          <div class="field wide"><label for="e-mail">Mail del receptor</label><input id="e-mail" type="email" required placeholder="nombre@empresa.com"></div>
+          <div class="field"><label for="e-cant">Cantidad</label><input id="e-cant" type="number" min="1" step="1" required></div>
+          <div class="field"><label for="e-sector">Sector</label><input id="e-sector" placeholder="Campo, Platea…"></div>
+          <div class="field wide"><label for="e-motivo">Motivo</label><input id="e-motivo" placeholder="Contrato, prensa, invitados…"></div>
+          <div class="field wide"><button class="btn" type="submit">Enviar a autorizar</button></div>
+        </form>
+        <datalist id="receptores">${[...new Set(S.entregas.map((x) => x.receptor))].map((r) => `<option value="${esc(r)}">`).join("")}</datalist>
+        <p class="note">El Autorizante la ve en su bandeja. Hasta que no la autorice, no se pueden cargar códigos.</p>
+      </div>
+      <div class="card"><h2>Cupo de ${esc(c.ev.nombre)}</h2>${resumenCupo(c)}</div>
+    </div>
+    <div class="card"><div class="card-h"><h2>Entregas del evento</h2><span class="muted">${filas.length} en total</span></div>
+      ${filas.length ? `<div class="tw"><table><thead><tr><th>Receptor</th><th>Mail</th><th class="r">Cant.</th><th>Sector</th><th>Estado</th><th></th></tr></thead><tbody>
+      ${filas.map((x) => `<tr><td><b>${esc(x.receptor)}</b>${x.comentario ? `<div class="note">${esc(x.comentario)}</div>` : ""}</td><td class="mono">${esc(x.mail)}</td><td class="r">${fmtN(x.cantidad)}</td><td>${esc(x.sector || "—")}</td><td>${pill(x.estado)}</td>
+        <td>${x.estado === "autorizada" ? `<button class="btn" data-act="cargar" data-id="${esc(x.id)}">Cargar códigos</button>` : x.estado === "enviada" ? `<details><summary>${fmtN((x.codigos || []).length)} códigos</summary><div class="codes">${(x.codigos || []).map((k) => `<span>${esc(k)}</span>`).join("")}</div></details>` : ""}</td></tr>`).join("")}
+      </tbody></table></div>` : `<div class="empty">Todavía no hay entregas para este evento. Cargá la primera con el formulario.</div>`}
+    </div>`;
+  }
+
+  // ---- Autorizante
+  function vAutorizar(c) {
+    const pend = S.entregas.filter((x) => x.estado === "pendiente").sort((a, b) => (a.creado < b.creado ? -1 : 1));
+    if (!pend.length) return `<div class="card"><h2>Bandeja de autorización</h2><div class="empty">No hay entregas pendientes de autorización.</div></div>`;
+    return `<div class="card"><div class="card-h"><h2>Bandeja de autorización</h2><span class="muted">${pend.length} pendientes, de todos los eventos</span></div>
+      <div class="tw"><table><thead><tr><th>Evento</th><th>Receptor</th><th class="r">Cant.</th><th>Motivo</th><th>Cupo después</th><th>Comentario</th><th></th></tr></thead><tbody>
+      ${pend.map((x) => {
+        const cc = calc(x.eventoId);
+        const libre = cc ? cc.cupo - cc.autorizadas - n(x.cantidad) : 0;
+        return `<tr><td>${esc(cc ? cc.ev.nombre : "—")}<div class="note">${cc ? fmtF(cc.ev.fecha) : ""}</div></td>
+          <td><b>${esc(x.receptor)}</b><div class="mono">${esc(x.mail)}</div><div class="note">Pedido por ${esc(x.creadoPor || "Gestor")} · ${fmtF(x.creado, true)}</div></td>
+          <td class="r">${fmtN(x.cantidad)}</td><td>${esc(x.motivo || "—")}<div class="note">${esc(x.sector || "")}</div></td>
+          <td>${libre < 0 ? `<span class="pill p-pend" style="background:var(--crit-soft);color:var(--crit)">Excede por ${fmtN(-libre)}</span>` : `<span class="num">Quedan ${fmtN(libre)}</span>`}</td>
+          <td><input id="com-${esc(x.id)}" placeholder="Opcional" aria-label="Comentario"></td>
+          <td><div class="row-actions"><button class="btn good" data-act="autorizar" data-id="${esc(x.id)}"${libre < 0 ? " disabled title=\"Supera el cupo del evento\"" : ""}>Autorizar</button><button class="btn crit" data-act="rechazar" data-id="${esc(x.id)}">Rechazar</button></div></td></tr>`;
+      }).join("")}
+      </tbody></table></div>
+      <p class="note">No se puede autorizar una entrega que supere el cupo que dio la ticketera.</p></div>`;
+  }
+
+  function vSaldo(c) {
+    if (!c) return sinEvento();
+    const ult = c.ultimo;
+    const filasRecon = ult ? `<div class="recon">
+        <div><span>Cupo que dio la ticketera</span><span>${fmtN(c.cupo)}</span></div>
+        <div><span>Saldo disponible en la ticketera (${fmtF(ult.fecha, true)})</span><span>${fmtN(ult.saldo)}</span></div>
+        <div><span>Retiradas (${fmtN(c.cupo)} − ${fmtN(ult.saldo)})</span><span>${fmtN(c.retiradas)}</span></div>
+        <div><span>Autorizadas en el sistema</span><span>${fmtN(c.autorizadas)}</span></div>
+        <div class="${c.retiradas - c.autorizadas > 0 ? "crit" : "good"}"><span>Retiradas sin autorización</span><span>${fmtN(Math.max(0, c.retiradas - c.autorizadas))}</span></div>
+      </div>` : `<div class="empty">Cargá el saldo que muestra la ticketera para ver la conciliación.</div>`;
+    return `<div class="grid2">
+      <div class="card"><h2>Conciliación del cupo</h2>${filasRecon}</div>
+      <div class="card"><h2>Cargar saldo de la ticketera</h2>
+        <p class="note">Mirá el saldo de cortesías disponible con tu propio usuario de consulta, no a través del Gestor.</p>
+        <form class="f" id="f-saldo">
+          <div class="field"><label for="s-valor">Saldo disponible</label><input id="s-valor" type="number" min="0" step="1" required></div>
+          <div class="field"><label for="s-tipo">Momento</label><select id="s-tipo"><option value="control">Control</option><option value="corte">Corte antes del show</option><option value="cierre">Cierre después del show</option></select></div>
+          <div class="field wide"><button class="btn" type="submit">Registrar saldo</button></div>
+        </form>
+        <p class="note">El corte se registra después del último envío autorizado. Si después el saldo baja sin una entrega que lo explique, el sistema avisa.</p>
+      </div>
+    </div>
+    <div class="card"><h2>Alertas</h2>${alertas(c)}</div>
+    <div class="card"><h2>Registros de saldo</h2>
+      ${c.sal.length ? `<div class="tw"><table><thead><tr><th>Fecha</th><th>Momento</th><th class="r">Saldo</th><th class="r">Retiradas</th><th>Cargó</th></tr></thead><tbody>
+      ${[...c.sal].reverse().map((s) => `<tr><td>${fmtF(s.fecha, true)}</td><td>${esc(TIPO_SALDO[s.tipo] || s.tipo)}</td><td class="r">${fmtN(s.saldo)}</td><td class="r">${fmtN(c.cupo - n(s.saldo))}</td><td>${esc(s.cargadoPor || "—")}</td></tr>`).join("")}
+      </tbody></table></div>` : `<div class="empty">Sin registros todavía.</div>`}</div>`;
+  }
+
+  function vMolinete(c) {
+    if (!c) return sinEvento();
+    const m = c.mol;
+    return `<div class="grid2">
+      <div class="card"><h2>Cargar reporte del molinete</h2>
+        <p class="note">Si la ticketera entrega el reporte de accesos, pegá los códigos que pasaron por el molinete o subí el archivo. Se toma la primera columna.</p>
+        <div class="field"><label for="mol-txt">Códigos leídos</label><textarea id="mol-txt" placeholder="4823104755&#10;4823104756&#10;…"></textarea></div>
+        <div class="row-actions"><label class="btn ghost" for="mol-file">Subir archivo (CSV o TXT)</label><input type="file" id="mol-file" accept=".csv,.txt,text/plain,text/csv" hidden><button class="btn" id="mol-guardar">Cruzar con las entregas</button></div>
+        <p id="mol-msg" class="err" aria-live="polite"></p>
+      </div>
+      <div class="card"><h2>Resultado</h2>
+        ${m ? `<div class="kpis"><div class="kpi"><span>Lecturas</span><b>${fmtN(m.lecturas)}</b></div><div class="kpi"><span>Usadas asignadas</span><b>${fmtN(c.usadas)}</b></div><div class="kpi${c.sinAsignar.length ? " crit" : ""}"><span>Sin asignar</span><b>${fmtN(c.sinAsignar.length)}</b></div></div>
+        <p class="note">Cargado el ${fmtF(m.fecha, true)} por ${esc(m.cargadoPor || "—")}.</p>
+        ${c.sinAsignar.length ? `<div><h3>Códigos que entraron sin estar asignados</h3><div class="codes">${c.sinAsignar.map((k) => `<span>${esc(k)}</span>`).join("")}</div></div>` : ""}` : `<div class="empty">Todavía no se cargó el reporte del molinete de este evento.</div>`}
+      </div>
+    </div>`;
+  }
+
+  function vEventos() {
+    const evs = sortEventos();
+    return `<div class="grid2">
+      <div class="card"><h2>Nuevo evento</h2>
+        <form class="f" id="f-evento">
+          <div class="field wide"><label for="v-nombre">Evento</label><input id="v-nombre" required placeholder="Artista – Gira 2026"></div>
+          <div class="field"><label for="v-fecha">Fecha</label><input id="v-fecha" type="date" required></div>
+          <div class="field"><label for="v-ticketera">Ticketera</label><input id="v-ticketera" list="ticketeras" required></div>
+          <div class="field wide"><label for="v-venue">Venue</label><input id="v-venue"></div>
+          <div class="field"><label for="v-cupo">Cupo de cortesías</label><input id="v-cupo" type="number" min="1" step="1" required></div>
+          <div class="field"><label for="v-saldo">Saldo inicial en la ticketera</label><input id="v-saldo" type="number" min="0" step="1" placeholder="Igual al cupo"></div>
+          <div class="field wide"><button class="btn" type="submit">Crear evento</button></div>
+        </form>
+        <datalist id="ticketeras"><option value="Ticketek"><option value="Movistar Arena"><option value="Ticket 1"></datalist>
+      </div>
+      <div class="card"><h2>Eventos</h2>
+        ${evs.length ? `<div class="tw"><table><thead><tr><th>Evento</th><th>Fecha</th><th>Ticketera</th><th class="r">Cupo</th></tr></thead><tbody>
+        ${evs.map((e) => `<tr><td><b>${esc(e.nombre)}</b><div class="note">${esc(e.venue || "")}</div></td><td>${fmtF(e.fecha)}</td><td>${esc(e.ticketera)}</td><td class="r">${fmtN(e.cupo)}</td></tr>`).join("")}
+        </tbody></table></div>` : `<div class="empty">Todavía no hay eventos.</div>`}
+      </div>
+    </div>`;
+  }
+
+  // ---- Dirección
+  function vTablero(c) {
+    if (!c) return sinEvento();
+    const receptores = new Map();
+    c.env.forEach((x) => {
+      const k = x.receptor + "|" + x.mail;
+      const r = receptores.get(k) || { receptor: x.receptor, mail: x.mail, entregadas: 0, usadas: 0, codigos: [] };
+      r.entregadas += n(x.cantidad); r.usadas += c.usadosPor.get(x.id) || 0; r.codigos.push(...(x.codigos || []));
+      receptores.set(k, r);
+    });
+    const usados = new Set(c.mol ? c.mol.codigos : []);
+    const otros = sortEventos().map((e) => { const k = calc(e.id); const cr = k.alerts.filter((a) => a.nivel === "crit").length; const w = k.alerts.length - cr; return { e, k, cr, w }; });
+    return `<div class="card"><div class="card-h"><h2>${esc(c.ev.nombre)}</h2><span class="muted">${fmtF(c.ev.fecha)} · ${esc(c.ev.venue || "")} · ${esc(c.ev.ticketera)}</span></div>
+      ${resumenCupo(c)}
+      ${c.retiradas != null ? `<p class="note">Según la ticketera se retiraron <b>${fmtN(c.retiradas)}</b> entradas (saldo ${fmtN(c.ultimo.saldo)} al ${fmtF(c.ultimo.fecha, true)}).${c.usadas != null ? ` Pasaron por el molinete <b>${fmtN(c.usadas)}</b> de las ${fmtN(c.enviadas)} enviadas.` : ""}</p>` : ""}
+    </div>
+    <div class="card"><h2>Alertas</h2>${alertas(c)}</div>
+    <div class="card"><div class="card-h"><h2>Por receptor</h2><span class="muted">Solo entregas enviadas</span></div>
+      ${receptores.size ? `<div class="tw"><table><thead><tr><th>Receptor</th><th>Mail</th><th class="r">Entregadas</th><th class="r">Usadas</th><th>Códigos</th></tr></thead><tbody>
+      ${[...receptores.values()].sort((a, b) => b.entregadas - a.entregadas).map((r) => `<tr><td><b>${esc(r.receptor)}</b></td><td class="mono">${esc(r.mail)}</td><td class="r">${fmtN(r.entregadas)}</td><td class="r">${c.mol ? fmtN(r.usadas) + ` <span class="muted">(${Math.round((r.usadas / r.entregadas) * 100)}%)</span>` : '<span class="muted">Sin molinete</span>'}</td>
+        <td><details><summary>Ver ${fmtN(r.codigos.length)}</summary><div class="codes">${r.codigos.map((k) => `<span class="${usados.has(k) ? "used" : ""}">${esc(k)}</span>`).join("")}</div></details></td></tr>`).join("")}
+      </tbody></table></div>${c.mol ? '<p class="note">En verde, los códigos que pasaron por el molinete.</p>' : ""}` : `<div class="empty">Todavía no hay entregas enviadas en este evento.</div>`}
+    </div>
+    <div class="card"><h2>Todos los eventos</h2><div class="tw"><table><thead><tr><th>Evento</th><th>Fecha</th><th class="r">Cupo</th><th class="r">Enviadas</th><th class="r">Retiradas</th><th class="r">Usadas</th><th>Estado</th></tr></thead><tbody>
+      ${otros.map(({ e, k, cr, w }) => `<tr><td><button class="btn ghost" data-act="ver-evento" data-id="${esc(e.id)}">${esc(e.nombre)}</button></td><td>${fmtF(e.fecha)}</td><td class="r">${fmtN(k.cupo)}</td><td class="r">${fmtN(k.enviadas)}</td><td class="r">${k.retiradas == null ? "—" : fmtN(k.retiradas)}</td><td class="r">${k.usadas == null ? "—" : fmtN(k.usadas)}</td>
+        <td>${cr ? `<span class="pill" style="background:var(--crit-soft);color:var(--crit)">${cr} alerta${cr > 1 ? "s" : ""} crítica${cr > 1 ? "s" : ""}</span>` : w ? `<span class="pill p-pend">${w} aviso${w > 1 ? "s" : ""}</span>` : '<span class="pill p-env">Sin alertas</span>'}</td></tr>`).join("")}
+    </tbody></table></div></div>`;
+  }
+
+  function vBuscar() {
+    const q = ui.busqueda.trim();
+    let res = "";
+    if (q) {
+      const x = S.entregas.find((e) => (e.codigos || []).includes(q));
+      const ev = x ? evento(x.eventoId) : null;
+      const enMolinete = Object.entries(S.molinete).find(([, m]) => (m.codigos || []).includes(q));
+      if (x) {
+        const usada = S.molinete[x.eventoId] ? ((S.molinete[x.eventoId].codigos || []).includes(q) ? "Sí, pasó por el molinete" : "No, no pasó por el molinete") : "Todavía no se cargó el reporte del molinete";
+        res = `<div class="recon">
+          <div><span>Receptor</span><span>${esc(x.receptor)}</span></div>
+          <div><span>Mail</span><span class="mono">${esc(x.mail)}</span></div>
+          <div><span>Evento</span><span>${esc(ev ? ev.nombre : "—")}</span></div>
+          <div><span>Autorizó</span><span>${esc(x.autorizadoPor || "—")} · ${fmtF(x.autorizado, true)}</span></div>
+          <div><span>Enviada</span><span>${esc(x.enviadoPor || "—")} · ${fmtF(x.fechaEnvio, true)}</span></div>
+          <div><span>¿Se usó?</span><span>${usada}</span></div></div>`;
+      } else if (enMolinete) {
+        const ev2 = evento(enMolinete[0]);
+        res = `<div class="alert crit"><div><h4>Código sin receptor que pasó por el molinete</h4><p>Entró en ${esc(ev2 ? ev2.nombre : "un evento")} pero no figura en ninguna entrega autorizada.</p></div></div>`;
+      } else {
+        res = `<div class="alert warn"><div><h4>El código no está asignado a ningún receptor</h4><p>Revisá que esté bien escrito. Si apareció a la venta y no figura acá, se retiró de la ticketera sin registrarse.</p></div></div>`;
+      }
+    }
+    return `<div class="card"><h2>Buscar un código</h2>
+      <p class="note">Por ejemplo, el código de una entrada que apareció a la venta en internet.</p>
+      <form class="f" id="f-buscar"><div class="field wide"><label for="b-codigo">Código</label><input id="b-codigo" class="mono" value="${esc(q)}" placeholder="4823104755"></div><div class="field"><button class="btn" type="submit">Buscar</button></div></form>
+      ${res}</div>`;
+  }
+
+  function vHistorial() {
+    const h = S.historial;
+    return `<div class="card"><div class="card-h"><h2>Historial de acciones</h2><span class="muted">Las últimas ${h.length}. No se puede editar ni borrar.</span></div>
+      ${h.length ? `<div class="tw"><table><thead><tr><th>Fecha</th><th>Quién</th><th>Acción</th><th>Evento</th></tr></thead><tbody>
+      ${h.map((x) => `<tr><td class="num" style="white-space:nowrap">${fmtF(x.fecha, true)}</td><td>${esc(x.quien)}</td><td>${esc(x.accion)}</td><td>${esc((evento(x.eventoId) || {}).nombre || "—")}</td></tr>`).join("")}
+      </tbody></table></div>` : `<div class="empty">Todavía no hay acciones registradas.</div>`}</div>`;
+  }
+
+  // ---------------------------------------------------------------- acciones
+  document.addEventListener("click", (ev) => {
+    const r = ev.target.closest(".roles button");
+    if (r) { ui.rol = r.dataset.rol; store.set("rol", ui.rol); ui.tab = ""; ui.aviso = null; ui.codigosDe = null; render(); return; }
+    const t = ev.target.closest(".tabs button");
+    if (t) { ui.tab = t.dataset.tab; render(); return; }
+    const b = ev.target.closest("button[data-act], #codigos-guardar, #codigos-cancelar, #aviso-copiar, #aviso-cerrar, #mol-guardar");
+    if (!b) return;
+    const id = b.dataset.id;
+    if (b.dataset.act === "ver-evento") { ui.ev = id; store.set("ev", id); render(); window.scrollTo({ top: 0 }); return; }
+    if (b.dataset.act === "cargar") { ui.codigosDe = id; render(); const el = $("#carga-codigos"); if (el) el.scrollIntoView({ block: "start" }); return; }
+    if (b.id === "codigos-cancelar") { ui.codigosDe = null; render(); return; }
+    if (b.id === "aviso-cerrar") { ui.aviso = null; render(); return; }
+    if (b.id === "aviso-copiar") {
+      const txt = ui.aviso;
+      navigator.clipboard && navigator.clipboard.writeText(txt).then(() => { b.textContent = "Copiado"; }).catch(() => { const s = window.getSelection(); const rg = document.createRange(); rg.selectNodeContents($("#aviso-txt")); s.removeAllRanges(); s.addRange(rg); });
+      return;
+    }
+    if (b.dataset.act === "autorizar" || b.dataset.act === "rechazar") {
+      const x = S.entregas.find((e) => e.id === id);
+      if (!x) return;
+      const com = ($("#com-" + CSS.escape(id)) || {}).value || "";
+      const aprobar = b.dataset.act === "autorizar";
+      b.disabled = true;
+      intentar(async () => {
+        await actualizar("entregas", id, aprobar
+          ? { estado: "autorizada", autorizadoPor: quien(), autorizado: new Date().toISOString(), comentario: com }
+          : { estado: "rechazada", autorizadoPor: quien(), autorizado: new Date().toISOString(), comentario: com || "Rechazada" });
+        await registrar(`${aprobar ? "Autorizó" : "Rechazó"} ${x.cantidad} entradas para ${x.receptor}${com ? " (" + com + ")" : ""}`, x.eventoId);
+      });
+      return;
+    }
+    if (b.id === "codigos-guardar") {
+      const x = S.entregas.find((e) => e.id === id);
+      const msg = $("#codigos-msg");
+      const cods = parseCodigos($("#codigos-txt").value);
+      const unicos = [...new Set(cods)];
+      if (unicos.length !== cods.length) { msg.textContent = `Hay ${cods.length - unicos.length} códigos repetidos en la lista.`; return; }
+      if (unicos.length !== n(x.cantidad)) { msg.textContent = `Cargaste ${unicos.length} códigos y la entrega autorizada es de ${x.cantidad}.`; return; }
+      const usados = new Map();
+      S.entregas.forEach((e) => (e.codigos || []).forEach((k) => usados.set(k, e)));
+      const choque = unicos.filter((k) => usados.has(k));
+      if (choque.length) { msg.textContent = `${choque.length} códigos ya están asignados a otro receptor (por ejemplo ${choque[0]}, de ${usados.get(choque[0]).receptor}).`; return; }
+      const ev2 = evento(x.eventoId);
+      b.disabled = true;
+      intentar(async () => {
+        await actualizar("entregas", id, { estado: "enviada", codigos: unicos, enviadoPor: quien(), fechaEnvio: new Date().toISOString() });
+        await registrar(`Cargó ${unicos.length} códigos y envió las entradas a ${x.receptor} (${x.mail})`, x.eventoId);
+        ui.codigosDe = null;
+        ui.aviso = `Para: ${x.mail}\nAsunto: Cortesías para ${ev2 ? ev2.nombre : "el evento"}\n\nHola, ${x.receptor}:\n\nSe te asignaron ${unicos.length} entradas de cortesía para ${ev2 ? ev2.nombre + ", el " + fmtF(ev2.fecha) : "el evento"}${x.sector ? ", sector " + x.sector : ""}. Las recibís desde la casilla de cortesías de la empresa.\n\nSon para regalar: no pueden venderse. Si recibiste una cantidad distinta, respondé este mail.`;
+      });
+      return;
+    }
+    if (b.id === "mol-guardar") {
+      const msg = $("#mol-msg");
+      const cods = parseCodigos($("#mol-txt").value);
+      if (!cods.length) { msg.textContent = "No se encontraron códigos. Pegá un código por línea o subí el archivo."; return; }
+      const cuenta = new Map();
+      cods.forEach((k) => cuenta.set(k, (cuenta.get(k) || 0) + 1));
+      const unicos = [...cuenta.keys()];
+      const repetidos = unicos.filter((k) => cuenta.get(k) > 1);
+      b.disabled = true;
+      intentar(async () => {
+        await guardarMolinete(ui.ev, { eventoId: ui.ev, codigos: unicos, lecturas: cods.length, repetidos, fecha: new Date().toISOString(), cargadoPor: quien() });
+        await registrar(`Cargó el reporte del molinete (${cods.length} lecturas)`, ui.ev);
+      });
+      return;
+    }
+  });
+
+  document.addEventListener("change", (ev) => {
+    if (ev.target.id === "evento") { ui.ev = ev.target.value; store.set("ev", ui.ev); ui.codigosDe = null; ui.aviso = null; render(); return; }
+    if (ev.target.id === "codigos-file" || ev.target.id === "mol-file") {
+      const f = ev.target.files && ev.target.files[0];
+      if (!f) return;
+      const destino = ev.target.id === "codigos-file" ? "#codigos-txt" : "#mol-txt";
+      f.text().then((txt) => { $(destino).value = parseCodigos(txt).join("\n"); });
+    }
+  });
+
+  $("#nombre").value = ui.nombre;
+  $("#nombre").addEventListener("input", (e) => { ui.nombre = e.target.value.trim(); store.set("nombre", ui.nombre); });
+
+  document.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const f = ev.target;
+    if (f.id === "f-entrega") {
+      const data = { eventoId: ui.ev, receptor: $("#e-receptor").value.trim(), mail: $("#e-mail").value.trim(), cantidad: n($("#e-cant").value), sector: $("#e-sector").value.trim(), motivo: $("#e-motivo").value.trim(), estado: "pendiente", creado: new Date().toISOString(), creadoPor: quien(), codigos: [] };
+      if (!data.receptor || !data.mail || data.cantidad < 1) return;
+      intentar(async () => { await crear("entregas", data); await registrar(`Pidió ${data.cantidad} entradas para ${data.receptor} (${data.mail})`, ui.ev); });
+    }
+    if (f.id === "f-saldo") {
+      const valor = n($("#s-valor").value);
+      const tipo = $("#s-tipo").value;
+      const c = calc(ui.ev);
+      if (valor > c.cupo) { ui.flash = { err: `El saldo no puede ser mayor que el cupo (${fmtN(c.cupo)}).` }; render(); return; }
+      intentar(async () => { await crear("saldos", { eventoId: ui.ev, saldo: valor, tipo, fecha: new Date().toISOString(), cargadoPor: quien() }); await registrar(`Registró saldo de la ticketera: ${valor} (${TIPO_SALDO[tipo]})`, ui.ev); });
+    }
+    if (f.id === "f-evento") {
+      const cupo = n($("#v-cupo").value);
+      const saldoTxt = $("#v-saldo").value;
+      const saldo = saldoTxt === "" ? cupo : n(saldoTxt);
+      const data = { nombre: $("#v-nombre").value.trim(), fecha: $("#v-fecha").value, ticketera: $("#v-ticketera").value.trim(), venue: $("#v-venue").value.trim(), cupo, creado: new Date().toISOString() };
+      if (saldo > cupo) { ui.flash = { err: "El saldo inicial no puede ser mayor que el cupo." }; render(); return; }
+      intentar(async () => {
+        const id = await crear("eventos", data);
+        await crear("saldos", { eventoId: id, saldo, tipo: "inicial", fecha: new Date().toISOString(), cargadoPor: quien() });
+        await registrar(`Creó el evento ${data.nombre} con un cupo de ${cupo}`, id);
+        ui.ev = id; store.set("ev", id);
+      });
+    }
+    if (f.id === "f-buscar") { ui.busqueda = $("#b-codigo").value; render(); }
+  });
+
+  // ---------------------------------------------------------------- inicio
+  cargar();
+  render();
+  $("#estado-datos").textContent = persistente ? "Demo con datos de ejemplo. Lo que cargues queda guardado solo en este navegador." : "Demo con datos de ejemplo. Este navegador no permite guardar: los cambios se pierden al recargar.";
+  const reset = $("#reiniciar");
+  reset.addEventListener("click", () => {
+    if (reset.dataset.confirmar !== "1") { reset.dataset.confirmar = "1"; reset.textContent = "¿Seguro? Tocá de nuevo"; setTimeout(() => { reset.dataset.confirmar = ""; reset.textContent = "Reiniciar demo"; }, 4000); return; }
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    ["eventos", "entregas", "saldos", "historial"].forEach((k) => { S[k] = []; });
+    S.molinete = {};
+    cargar(); ui.ev = ""; ui.aviso = null; ui.codigosDe = null; ui.busqueda = "";
+    reset.dataset.confirmar = ""; reset.textContent = "Reiniciar demo";
+    render();
+  });
+})();
+</script>
+
+</body>
+</html>
